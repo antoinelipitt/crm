@@ -28,17 +28,23 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/lib/auth-provider"
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar: string
-  }
-}) {
+export function NavUser() {
   const { isMobile } = useSidebar()
+  const { user, profile, organization, signOut } = useAuth()
+
+  if (!user || !profile) {
+    return null
+  }
+
+  const userInitials = profile.full_name 
+    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase() 
+    : user.email?.[0].toUpperCase() || 'U'
+
+  const handleSignOut = async () => {
+    await signOut()
+  }
 
   return (
     <SidebarMenu>
@@ -49,14 +55,14 @@ export function NavUser({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+              <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={profile.avatar_url || ''} alt={profile.full_name || user.email || ''} />
+                <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium">{profile.full_name || user.email}</span>
                 <span className="text-muted-foreground truncate text-xs">
-                  {user.email}
+                  {organization?.name || 'Aucune organisation'}
                 </span>
               </div>
               <IconDotsVertical className="ml-auto size-4" />
@@ -71,11 +77,11 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage src={profile.avatar_url || ''} alt={profile.full_name || user.email || ''} />
+                  <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{profile.full_name || user.email}</span>
                   <span className="text-muted-foreground truncate text-xs">
                     {user.email}
                   </span>
@@ -86,11 +92,11 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconUserCircle />
-                Account
+                Profil
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconCreditCard />
-                Billing
+                Facturation
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconNotification />
@@ -98,9 +104,9 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
               <IconLogout />
-              Log out
+              Se déconnecter
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
