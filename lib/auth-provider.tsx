@@ -17,6 +17,10 @@ interface AuthContextType {
   loading: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  updateProfile: (updates: Partial<Profile>) => Promise<void>
+  updateOrganization: (updates: Partial<Organization>) => Promise<void>
+  updateMemberRole: (userId: string, newRole: string) => Promise<void>
+  getOrganizationMembers: () => Promise<Profile[]>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -92,6 +96,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!user) throw new Error('Utilisateur non connecté')
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      setProfile(data)
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du profil:', error)
+      throw error
+    }
+  }
+
+  const updateOrganization = async (updates: Partial<Organization>) => {
+    if (!profile || profile.role !== 'owner') {
+      throw new Error('Seuls les propriétaires peuvent modifier l\'organisation')
+    }
+    
+    if (!organization) throw new Error('Aucune organisation trouvée')
+    
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .update(updates)
+        .eq('id', organization.id)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      setOrganization(data)
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'organisation:', error)
+      throw error
+    }
+  }
+
+  const updateMemberRole = async (userId: string, newRole: string) => {
+    if (!profile || profile.role !== 'owner') {
+      throw new Error('Seuls les propriétaires peuvent modifier les rôles')
+    }
+    
+    if (!organization) throw new Error('Aucune organisation trouvée')
+    
+    try {
+      // Vérifier qu'il reste au moins un owner
+      if (newRole === 'member') {
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organization.id)
+          .eq('role', 'owner')
+
+        if (count && count <= 1) {
+          throw new Error('Il doit y avoir au moins un propriétaire dans l\'organisation')
+        }
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId)
+        .eq('organization_id', organization.id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Erreur lors du changement de rôle:', error)
+      throw error
+    }
+  }
+
+  const getOrganizationMembers = async (): Promise<Profile[]> => {
+    if (!organization) return []
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      
+      return data || []
+    } catch (error) {
+      console.error('Erreur lors du chargement des membres:', error)
+      return []
+    }
+  }
+
   const signOut = async () => {
     try {
       await supabase.auth.signOut()
@@ -146,7 +247,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     organization,
     loading,
     signOut,
-    refreshProfile
+    refreshProfile,
+    updateProfile,
+    updateOrganization,
+    updateMemberRole,
+    getOrganizationMembers
   }
 
   return (

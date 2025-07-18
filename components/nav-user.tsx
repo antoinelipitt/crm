@@ -6,6 +6,7 @@ import {
   IconLogout,
   IconNotification,
   IconUserCircle,
+  IconBuilding,
 } from "@tabler/icons-react"
 
 import {
@@ -90,9 +91,17 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <IconUserCircle />
-                Profil
+              <DropdownMenuItem asChild>
+                <a href="/dashboard/profile" className="flex items-center">
+                  <IconUserCircle />
+                  Profil
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href="/dashboard/organization" className="flex items-center">
+                  <IconBuilding />
+                  Organisation
+                </a>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconCreditCard />
