@@ -90,3 +90,7 @@ The sidebar contains:
 - Dashboard data is loaded from `app/dashboard/data.json`
 - Static navigation data is defined in `app-sidebar.tsx`
 - No external API integration currently implemented
+
+## Language and Localization
+
+- l'application sera uniquement en anglais
