@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -42,12 +41,10 @@ interface OrganizationMember {
 export default function OrganizationPage() {
   const { data: session } = useSession()
   const [members, setMembers] = useState<OrganizationMember[]>([])
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchOrganizationMembers() {
       if (!session?.user) {
-        setLoading(false)
         return
       }
 
@@ -61,31 +58,19 @@ export default function OrganizationPage() {
           setMembers(data.members)
         } else {
           console.error("[Organization Page] Failed to fetch members:", data.error)
-          // Fallback to empty array if there's an error
           setMembers([])
         }
       } catch (error) {
         console.error("[Organization Page] Error fetching members:", error)
-        // Fallback to empty array if there's an error
         setMembers([])
-      } finally {
-        setLoading(false)
       }
     }
 
     fetchOrganizationMembers()
   }, [session])
 
-  if (!session?.user) {
-    return (
-      <div className="px-4 lg:px-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground">Loading organization information...</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  if (!session?.user?.organization) {
+    return null
   }
 
   const getInitials = (name: string) => {
@@ -121,7 +106,6 @@ export default function OrganizationPage() {
     }
 
     try {
-      setLoading(true)
       const response = await fetch(`/api/organization/members/${memberId}/role`, {
         method: 'PATCH',
         headers: {
@@ -148,8 +132,6 @@ export default function OrganizationPage() {
     } catch (error) {
       console.error("Error updating member role:", error)
       toast.error("Failed to update member role")
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -164,76 +146,20 @@ export default function OrganizationPage() {
 
       <div className="grid gap-6">
         {/* Organization Overview */}
-        {loading ? (
-          <div className="px-4 lg:px-6">
-            <Card>
+        <div className="px-4 lg:px-6">
+          <Card>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Skeleton className="h-7 w-48" />
-                <Skeleton className="h-5 w-32" />
+              <div className="space-y-1">
+                <h3 className="text-xl font-semibold">{session.user.organization.name}</h3>
+                <p className="text-muted-foreground">@{session.user.email?.split('@')[1]}</p>
               </div>
             </CardContent>
-            </Card>
-          </div>
-        ) : (
-          session.user.organization && (
-            <div className="px-4 lg:px-6">
-              <Card>
-              <CardContent className="space-y-6">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-semibold">{session.user.organization.name}</h3>
-                  <p className="text-muted-foreground">@{session.user.email?.split('@')[1]}</p>
-                </div>
-              </CardContent>
-              </Card>
-            </div>
-          )
-        )}
+          </Card>
+        </div>
 
         {/* Organization Members */}
-        {loading ? (
-          <div className="px-4 lg:px-6">
-            <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader className="bg-muted sticky top-0 z-10">
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[1, 2, 3, 4].map((i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Skeleton className="h-8 w-8 rounded-full" />
-                        <Skeleton className="h-4 w-24" />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-40" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-6 w-16 rounded-full" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Skeleton className="h-8 w-8 rounded ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </div>
-          </div>
-        ) : (
-          <div className="px-4 lg:px-6">
-            <div className="overflow-hidden rounded-lg border">
+        <div className="px-4 lg:px-6">
+          <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
                 <TableRow>
@@ -277,7 +203,6 @@ export default function OrganizationPage() {
                               variant="ghost"
                               className="data-[state=open]:bg-muted text-muted-foreground flex size-8 ml-auto"
                               size="icon"
-                              disabled={loading}
                             >
                               <IconDotsVertical />
                               <span className="sr-only">Open menu</span>
@@ -301,9 +226,8 @@ export default function OrganizationPage() {
                 ))}
               </TableBody>
             </Table>
-            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

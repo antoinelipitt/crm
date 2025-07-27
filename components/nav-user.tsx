@@ -110,13 +110,13 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/account">
+                <Link href="/dashboard/settings/account">
                   <IconUserCircle />
                   Account
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/organization">
+                <Link href="/dashboard/settings/organization">
                   <IconBuilding />
                   Organization
                 </Link>
