@@ -56,6 +56,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   organizationMemberships OrganizationMember[]
+  emails        Email[]
+  emailSync     EmailSync?
 
   @@map("users")
 }
@@ -67,6 +69,8 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   members   OrganizationMember[]
+  emails    Email[]
+  gmailSyncSettings GmailSyncSettings?
 
   @@map("organizations")
 }
@@ -97,4 +101,69 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verificationtokens")
+}
+
+model Email {
+  id             String   @id @default(cuid())
+  messageId      String   @unique @map("message_id")
+  threadId       String?  @map("thread_id")
+  subject        String
+  from           String
+  to             String[]
+  cc             String[]
+  bcc            String[]
+  bodyText       String?  @db.Text @map("body_text")
+  bodyHtml       String?  @db.Text @map("body_html")
+  snippet        String?
+  labels         String[]
+  hasAttachments Boolean  @default(false) @map("has_attachments")
+  isStarred      Boolean  @default(false) @map("is_starred")
+  receivedAt     DateTime @map("received_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  organizationId String   @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([receivedAt])
+  @@map("emails")
+}
+
+model EmailSync {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  lastSyncAt     DateTime? @map("last_sync_at")
+  syncStatus     String   @default("idle") @map("sync_status") // idle, syncing, completed, failed
+  lastError      String?  @map("last_error")
+  emailCount     Int      @default(0) @map("email_count")
+  nextPageToken  String?  @map("next_page_token")
+  
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("email_syncs")
+}
+
+model GmailSyncSettings {
+  id                 String   @id @default(cuid())
+  organizationId     String   @unique @map("organization_id")
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  maxEmailsPerSync   Int      @default(50) @map("max_emails_per_sync")     // Max emails to fetch per sync
+  syncFromDays       Int      @default(30) @map("sync_from_days")          // Fetch emails from last X days
+  useIncrementalSync Boolean  @default(true) @map("use_incremental_sync")  // Use lastSyncAt or fixed period
+  autoSyncEnabled    Boolean  @default(false) @map("auto_sync_enabled")    // Enable automatic sync
+  autoSyncInterval   Int      @default(60) @map("auto_sync_interval")      // Auto sync interval in minutes
+  
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  updatedBy          String?  @map("updated_by")
+
+  @@map("gmail_sync_settings")
 }
