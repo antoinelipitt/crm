@@ -70,6 +70,8 @@ model Organization {
   updatedAt DateTime @updatedAt @map("updated_at")
   members   OrganizationMember[]
   emails    Email[]
+  companies Company[]
+  contacts  Contact[]
   gmailSyncSettings GmailSyncSettings?
 
   @@map("organizations")
@@ -166,4 +168,59 @@ model GmailSyncSettings {
   updatedBy          String?  @map("updated_by")
 
   @@map("gmail_sync_settings")
+}
+
+model Company {
+  id             String   @id @default(cuid())
+  domain         String   // e.g., apple.com
+  name           String?  // e.g., Apple Inc.
+  emailCount     Int      @default(0) @map("email_count")
+  contactCount   Int      @default(0) @map("contact_count")
+  firstSeenAt    DateTime @map("first_seen_at")
+  lastSeenAt     DateTime @map("last_seen_at")
+  
+  // Optional enrichment fields
+  website        String?
+  industry       String?
+  size           String?
+  logoUrl        String? @map("logo_url")
+  
+  organizationId String   @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  contacts       Contact[]
+  
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([domain, organizationId])
+  @@index([organizationId])
+  @@index([domain])
+  @@map("companies")
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  email          String   
+  name           String?  // Extracted from email headers
+  
+  emailsSent     Int      @default(0) @map("emails_sent")
+  emailsReceived Int      @default(0) @map("emails_received")
+  firstSeenAt    DateTime @map("first_seen_at")
+  lastSeenAt     DateTime @map("last_seen_at")
+  
+  companyId      String?  @map("company_id")
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  
+  organizationId String   @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([email, organizationId])
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([email])
+  @@map("contacts")
 }

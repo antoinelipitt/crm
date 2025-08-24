@@ -1,6 +1,10 @@
 import { google } from 'googleapis'
 import { prisma } from '@/lib/prisma'
 import { refreshGoogleAccessToken } from '@/lib/google-auth'
+import { 
+  parseEmailString, 
+  generateCompanyName
+} from '@/lib/email-parser'
 
 interface MessageData {
   id?: string | null;
@@ -285,6 +289,112 @@ export class GmailClient {
     }
   }
 
+  /**
+   * Process and save/update contacts and companies from email addresses
+   */
+  private async processContactsAndCompanies(
+    fromEmail: string,
+    toEmails: string[],
+    ccEmails: string[],
+    bccEmails: string[],
+    organizationId: string,
+    receivedAt: Date
+  ) {
+    const allEmailStrings = [fromEmail, ...toEmails, ...ccEmails, ...bccEmails].filter(Boolean)
+    const processedEmails = new Map<string, { name?: string; domain?: string; isPersonal: boolean }>()
+    
+    // Parse all unique email addresses
+    for (const emailStr of allEmailStrings) {
+      const parsed = parseEmailString(emailStr)
+      if (parsed && !processedEmails.has(parsed.email)) {
+        processedEmails.set(parsed.email, {
+          name: parsed.name,
+          domain: parsed.domain,
+          isPersonal: parsed.isPersonal
+        })
+      }
+    }
+
+    // Process companies first (from unique domains)
+    const companyByDomain = new Map<string, string>() // domain -> companyId
+    const domains = new Set<string>()
+    
+    for (const [, data] of processedEmails) {
+      if (data.domain && !data.isPersonal) {
+        domains.add(data.domain)
+      }
+    }
+
+    for (const domain of domains) {
+      const company = await prisma.company.upsert({
+        where: {
+          domain_organizationId: {
+            domain,
+            organizationId
+          }
+        },
+        update: {
+          emailCount: { increment: 1 },
+          lastSeenAt: receivedAt
+        },
+        create: {
+          domain,
+          name: generateCompanyName(domain),
+          emailCount: 1,
+          firstSeenAt: receivedAt,
+          lastSeenAt: receivedAt,
+          organizationId
+        }
+      })
+      companyByDomain.set(domain, company.id)
+    }
+
+    // Process contacts
+    const fromParsed = parseEmailString(fromEmail)
+    
+    for (const [email, data] of processedEmails) {
+      const isFrom = fromParsed?.email === email
+      const companyId = data.domain && !data.isPersonal ? companyByDomain.get(data.domain) : undefined
+      
+      await prisma.contact.upsert({
+        where: {
+          email_organizationId: {
+            email,
+            organizationId
+          }
+        },
+        update: {
+          name: data.name || undefined,
+          emailsSent: isFrom ? { increment: 1 } : undefined,
+          emailsReceived: !isFrom ? { increment: 1 } : undefined,
+          lastSeenAt: receivedAt,
+          companyId
+        },
+        create: {
+          email,
+          name: data.name,
+          emailsSent: isFrom ? 1 : 0,
+          emailsReceived: !isFrom ? 1 : 0,
+          firstSeenAt: receivedAt,
+          lastSeenAt: receivedAt,
+          companyId,
+          organizationId
+        }
+      })
+    }
+
+    // Update company contact counts
+    for (const companyId of companyByDomain.values()) {
+      const contactCount = await prisma.contact.count({
+        where: { companyId }
+      })
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { contactCount }
+      })
+    }
+  }
+
   private async saveEmail(messageData: MessageData, userId: string, organizationId: string) {
     const headers = messageData.payload?.headers || []
     const getHeader = (name: string) => 
@@ -333,6 +443,16 @@ export class GmailClient {
     const hasAttachments = messageData.payload?.parts?.some((part: BodyPart) => 
       part.filename && part.filename.length > 0
     ) || false
+
+    // Process contacts and companies from this email
+    await this.processContactsAndCompanies(
+      from,
+      to,
+      cc,
+      bcc,
+      organizationId,
+      receivedAt
+    )
 
     // Save to database
     await prisma.email.upsert({

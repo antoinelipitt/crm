@@ -14,7 +14,7 @@ import {
   IconMail, 
   IconChevronRight,
   IconBuilding,
-  IconSettings
+  IconTrash
 } from "@tabler/icons-react"
 
 interface SettingsCard {
@@ -47,6 +47,13 @@ export default function SettingsPage() {
       description: "Configure email synchronization from Gmail for your organization",
       href: "/dashboard/settings/gmailsync",
       icon: IconMail,
+    },
+    {
+      title: "Data Management",
+      description: "Delete all synchronized emails, contacts, and companies",
+      href: "/dashboard/settings/datamanagement",
+      icon: IconTrash,
+      requiresOwner: true,
     },
   ]
 
@@ -99,33 +106,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Additional Settings Info */}
-      <div className="px-4 lg:px-6">
-        <Card className="border-muted">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <IconSettings className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Quick Info
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <div className="flex items-center justify-between">
-              <span>Your Role</span>
-              <span className="font-medium">{session?.user?.organization?.role || 'Member'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Organization</span>
-              <span className="font-medium">{session?.user?.organization?.name || 'N/A'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Email</span>
-              <span className="font-medium">{session?.user?.email}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }
